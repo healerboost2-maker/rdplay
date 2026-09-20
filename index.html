@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101318">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Generic Audio Receiver</title>
+
+<style>
+:root {
+    /* CHANGE THIS LATER FOR YOUR OWN BACKGROUND */
+    --app-background:
+        radial-gradient(circle at 50% 10%, rgba(70,120,255,.18), transparent 35%),
+        linear-gradient(180deg, #101318 0%, #080a0d 100%);
+
+    --card-background: rgba(18,22,28,.94);
+    --text: #ffffff;
+    --muted: #9aa5b1;
+    --accent: #3d9cff;
+    --live: #ff3048;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #080a0d;
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background: var(--app-background);
+}
+
+.app {
+    width: 100%;
+    max-width: 520px;
+    min-height: 100vh;
+    margin: auto;
+    padding-bottom: 28px;
+}
+
+.header {
+    padding: 24px 20px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    min-width: 0;
+}
+
+.brand h1 {
+    margin: 0 0 5px;
+    font-size: 19px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.brand p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--live);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--live);
+    animation: pulse 1.3s infinite;
+}
+
+@keyframes pulse {
+    50% { opacity: .35; transform: scale(.7); }
+}
+
+.card {
+    margin: 0 20px;
+    padding: 25px 22px 22px;
+    border-radius: 25px;
+    background: var(--card-background);
+    border: 1px solid rgba(255,255,255,.09);
+    box-shadow: 0 25px 70px rgba(0,0,0,.42);
+}
+
+.art-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 3px 0 23px;
+}
+
+.record-player {
+    position: relative;
+    width: 230px;
+    height: 230px;
+    flex: 0 0 auto;
+}
+
+/* ONLY THE VINYL DISC ROTATES */
+.disc {
+    position: absolute;
+    inset: 0;
+    width: 230px;
+    height: 230px;
+    border-radius: 50%;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 50%, #24272c 0 2%, #111317 2.5% 4%,
+            #050608 4.5% 11%, #17191d 11.5% 12%, #08090b 12.5% 100%);
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 18px 48px rgba(0,0,0,.58), inset 0 0 0 1px rgba(255,255,255,.04);
+}
+
+.disc::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    background: repeating-radial-gradient(circle, rgba(255,255,255,.055) 0 1px, transparent 1px 4px);
+    opacity: .55;
+    pointer-events: none;
+}
+
+.disc-groove {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.055);
+    pointer-events: none;
+}
+
+.groove-1 { inset: 16px; }
+.groove-2 { inset: 29px; }
+.groove-3 { inset: 43px; }
+
+/* IMPORTANT: this is a sibling of .disc, NOT a child. */
+/* Therefore it cannot rotate with the vinyl. */
+.disc-label {
+    position: absolute;
+    width: 104px;
+    height: 104px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    overflow: hidden;
+    background: #15171b;
+    border: 2px solid rgba(255,255,255,.16);
+    box-shadow: 0 4px 14px rgba(0,0,0,.55), inset 0 0 10px rgba(0,0,0,.3);
+    z-index: 10;
+    pointer-events: none;
+}
+
+.disc-label img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.disc-hole {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #090a0c;
+    border: 1px solid rgba(255,255,255,.25);
+    z-index: 5;
+}
+
+.disc-shine {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(125deg, transparent 0 37%, rgba(255,255,255,.10) 43%, transparent 49% 100%);
+    pointer-events: none;
+    z-index: 6;
+}
+
+.disc.playing {
+    animation: disc-spin 4.8s linear infinite;
+}
+
+@keyframes disc-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .disc.playing { animation: none; }
+}
+
+.info {
+    text-align: center;
+}
+
+.state {
+    color: var(--live);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    margin-bottom: 8px;
+}
+
+.info h2 {
+    margin: 0 0 7px;
+    font-size: 21px;
+}
+
+.freq {
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.program {
+    margin-top: 8px;
+    color: #c0c7d0;
+    font-size: 13px;
+}
+
+.wave {
+    height: 62px;
+    margin: 20px 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    overflow: hidden;
+}
+
+.wave-bar {
+    width: 3px;
+    min-height: 7px;
+    border-radius: 5px;
+    background: linear-gradient(180deg, #79bdff, #357eff);
+    transform-origin: center;
+    transition: height .08s linear;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+}
+
+.play {
+    width: 76px;
+    height: 76px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #111;
+    font-size: 24px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 10px 35px rgba(0,0,0,.45);
+}
+
+.play:active { transform: scale(.93); }
+
+.volume {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-top: 20px;
+}
+
+.volume input {
+    width: 100%;
+    accent-color: var(--accent);
+}
+
+.connection {
+    text-align: center;
+    margin-top: 14px;
+    min-height: 15px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.connection.ok { color: #43df9d; }
+.connection.err { color: #ff6070; }
+
+.format {
+    margin-top: 8px;
+    text-align: center;
+    color: #657180;
+    font-size: 10px;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 20px;
+    color: #657180;
+    font-size: 10px;
+    letter-spacing: .5px;
+}
+
+.audio-permission {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0,0,0,.78);
+    backdrop-filter: blur(10px);
+}
+
+.audio-permission.hidden { display: none; }
+
+.audio-permission-card {
+    width: 100%;
+    max-width: 390px;
+    padding: 27px 23px;
+    border-radius: 23px;
+    text-align: center;
+    background: #151a20;
+    border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 25px 70px rgba(0,0,0,.6);
+}
+
+.audio-permission-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 14px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: rgba(61,156,255,.14);
+    font-size: 25px;
+}
+
+.audio-permission-card h2 {
+    margin: 0 0 10px;
+    font-size: 21px;
+}
+
+.audio-permission-card p {
+    margin: 0 0 21px;
+    color: #aeb7c2;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.audio-permission-button {
+    width: 100%;
+    border: 0;
+    border-radius: 13px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg,#3d9cff,#2467d9);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+@media (max-width:430px) {
+    .card { margin: 0 14px; }
+    .header { padding-left: 14px; padding-right: 14px; }
+}
+</style>
+</head>
+
+<body>
+<div class="audio-permission" id="audioPermission">
+    <div class="audio-permission-card">
+        <div class="audio-permission-icon">🔊</div>
+        <h2>Enable Live Audio</h2>
+        <p>Tap below to allow the receiver to start live audio playback.</p>
+        <button class="audio-permission-button" id="audioPermissionButton">
+            ENABLE LIVE AUDIO
+        </button>
+    </div>
+</div>
+
+<div class="app">
+    <header class="header">
+        <div class="brand">
+            <h1 id="uiHeaderName">Generic Audio Receiver</h1>
+            <p>Live Audio Receiver</p>
+        </div>
+        <div class="live"><span class="live-dot"></span>LIVE</div>
+    </header>
+
+    <section class="card">
+        <div class="art-wrap">
+            <div class="record-player" aria-label="Station record">
+                <!-- ONLY THE VINYL SPINS -->
+                <div class="disc" id="uiDisc" aria-hidden="true">
+                    <div class="disc-groove groove-1"></div>
+                    <div class="disc-groove groove-2"></div>
+                    <div class="disc-groove groove-3"></div>
+                    <div class="disc-hole"></div>
+                    <div class="disc-shine"></div>
+                </div>
+
+                <!-- LOGO IS OUTSIDE THE ROTATING ELEMENT AND STAYS STILL -->
+                <div class="disc-label">
+                    <img id="uiStationArt" src="assets/st1067_logo.jpg" alt="Station logo">
+                </div>
+            </div>
+        </div>
+
+        <div class="info">
+            <div class="state">● LIVE</div>
+            <h2 id="uiStationName">Generic Station</h2>
+            <div class="freq" id="uiFrequency">Live Audio</div>
+            <div class="program" id="uiProgram">Live Broadcast</div>
+        </div>
+
+        <div class="wave" id="uiWave"></div>
+
+        <div class="controls">
+            <button class="play" id="uiPlayButton" aria-label="Play or pause">▶</button>
+        </div>
+
+        <div class="volume">
+            <span>🔊</span>
+            <input id="uiVolume" type="range" min="0" max="1" step=".01" value="1">
+        </div>
+
+        <div id="uiConnection" class="connection">Ready to stream</div>
+        <div id="uiFormat" class="format">Waiting for stream format</div>
+    </section>
+
+    <footer class="footer" id="uiFooter">Live Audio Receiver</footer>
+</div>
+
+<script type="module">
+import {
+    createAudioEngine,
+    resumeAudioEngine,
+    startMeter
+} from "./modules/radio-core.js";
+
+import {
+    RECEIVER_CONFIG,
+    createReceiver
+} from "./modules/receiver.js";
+
+"use strict";
+
+let receiver = null;
+let audioReady = false;
+let receiverCreated = false;
+let serverStationName = "";
+let serverStationCode = "";
+
+const $ = id => document.getElementById(id);
+
+const uiPlayButton = $("uiPlayButton");
+const uiVolume = $("uiVolume");
+const uiConnection = $("uiConnection");
+const uiFormat = $("uiFormat");
+const uiWave = $("uiWave");
+const audioPermission = $("audioPermission");
+const audioPermissionButton = $("audioPermissionButton");
+
+function setConnection(text, type = "") {
+    uiConnection.textContent = text;
+    uiConnection.className = "connection " + type;
+}
+
+function updateStationUI() {
+    // Station identity is intentionally NOT taken from local configuration.
+    // It is populated when the server sends its receiver status message.
+    $("uiHeaderName").textContent =
+        serverStationName || "Connecting to Station...";
+
+    $("uiStationName").textContent =
+        serverStationName || "Waiting for station...";
+
+    $("uiFrequency").textContent =
+        RECEIVER_CONFIG.frequency || "Live Audio";
+
+    $("uiProgram").textContent =
+        RECEIVER_CONFIG.program || "Live Broadcast";
+
+    $("uiFooter").textContent =
+        RECEIVER_CONFIG.footer || "Live Audio Receiver";
+
+    const img = $("uiStationArt");
+    if (RECEIVER_CONFIG.artwork) {
+        img.src = RECEIVER_CONFIG.artwork;
+    }
+}
+
+function receiverServerInfo(info) {
+    if (!info) return;
+
+    const name = String(info.stationName || "").trim();
+    const code = String(info.station || "").trim();
+
+    if (name) {
+        serverStationName = name;
+    } else if (code) {
+        serverStationName = code;
+    }
+
+    if (code) {
+        serverStationCode = code;
+    }
+
+    if (serverStationName) {
+        $("uiHeaderName").textContent = serverStationName;
+        $("uiStationName").textContent = serverStationName;
+        updateMediaSession();
+    }
+}
+
+function showPermission() {
+    audioPermission.classList.remove("hidden");
+}
+
+function hidePermission() {
+    audioPermission.classList.add("hidden");
+}
+
+function receiverStatus(status) {
+    if (status === "connecting") {
+        setConnection("Connecting...", "");
+    } else if (status === "connected") {
+        setConnection(
+            audioReady ? "LIVE • CONNECTED" : "Connected",
+            "ok"
+        );
+    } else if (status === "reconnecting") {
+        setConnection("Reconnecting...", "");
+    } else if (status === "disconnected") {
+        setConnection(
+            audioReady ? "Stream disconnected" : "Ready to stream",
+            audioReady ? "err" : ""
+        );
+    } else if (status === "error") {
+        setConnection("Stream connection error", "err");
+    }
+}
+
+function receiverFormat(format) {
+    if (!format) return;
+
+    const codec = format.codec || "Unknown";
+    const rate = format.sampleRate
+        ? `${format.sampleRate} Hz`
+        : "";
+    const channels = format.channels
+        ? `${format.channels} ch`
+        : "";
+
+    uiFormat.textContent =
+        [codec, rate, channels].filter(Boolean).join(" • ");
+}
+
+function receiverError(error) {
+    console.error("[Receiver]", error);
+
+    if (audioReady) {
+        setConnection("Audio stream error", "err");
+    }
+}
+
+function createReceiverOnce() {
+    if (receiverCreated) return receiver;
+
+    receiver = createReceiver({
+        onStatus: receiverStatus,
+        onFormat: receiverFormat,
+        onServerInfo: receiverServerInfo,
+        onError: receiverError
+    });
+
+    receiverCreated = true;
+    return receiver;
+}
+
+async function startRadio() {
+    createReceiverOnce();
+
+    try {
+        await resumeAudioEngine();
+
+        const engine = createAudioEngine();
+
+        if (!engine || engine.context.state !== "running") {
+            showPermission();
+            setConnection("Tap ENABLE LIVE AUDIO to start", "err");
+            return false;
+        }
+
+        await receiver.prepareAudio();
+
+        receiver.connect();
+        receiver.setVolume(Number(uiVolume.value), true);
+
+        audioReady = true;
+        hidePermission();
+
+        uiPlayButton.textContent = "❚❚";
+        $("uiDisc").classList.add("playing");
+        setConnection("LIVE • CONNECTED", "ok");
+
+        return true;
+    } catch (error) {
+        console.error("[Receiver] Start failed:", error);
+        audioReady = false;
+        uiPlayButton.textContent = "▶";
+        $("uiDisc").classList.remove("playing");
+        showPermission();
+        setConnection("Audio could not start", "err");
+        return false;
+    }
+}
+
+async function pauseRadio() {
+    audioReady = false;
+
+    if (receiver) {
+        receiver.setVolume(0, true);
+    }
+
+    const engine = createAudioEngine();
+
+    if (engine && engine.context.state === "running") {
+        try {
+            await engine.context.suspend();
+        } catch (_) {}
+    }
+
+    uiPlayButton.textContent = "▶";
+    $("uiDisc").classList.remove("playing");
+    setConnection("Stream paused", "");
+}
+
+function updateMediaSession() {
+    if (!("mediaSession" in navigator)) return;
+
+    try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: serverStationName || "Live Station",
+            artist: RECEIVER_CONFIG.program || "Live Broadcast",
+            album: RECEIVER_CONFIG.receiverName || "Generic Audio Receiver",
+            ...(RECEIVER_CONFIG.artwork ? {
+                artwork: [{
+                    src: new URL(
+                        RECEIVER_CONFIG.artwork,
+                        window.location.href
+                    ).href,
+                    sizes: "512x512"
+                }]
+            } : {})
+        });
+
+        navigator.mediaSession.setActionHandler(
+            "play",
+            () => startRadio()
+        );
+
+        navigator.mediaSession.setActionHandler(
+            "pause",
+            () => pauseRadio()
+        );
+
+        navigator.mediaSession.setActionHandler(
+            "stop",
+            () => pauseRadio()
+        );
+    } catch (_) {}
+}
+
+uiPlayButton.addEventListener("click", async () => {
+    if (audioReady) {
+        await pauseRadio();
+    } else {
+        await startRadio();
+    }
+});
+
+audioPermissionButton.addEventListener("click", async () => {
+    await startRadio();
+});
+
+uiVolume.addEventListener("input", () => {
+    if (receiver && audioReady) {
+        receiver.setVolume(
+            Number(uiVolume.value),
+            false
+        );
+    }
+});
+
+/* 48 visualizer bars. Actual level comes from the shared analyser. */
+for (let i = 0; i < 48; i++) {
+    const bar = document.createElement("span");
+    bar.className = "wave-bar";
+    bar.style.height = "8px";
+    uiWave.appendChild(bar);
+}
+
+createAudioEngine();
+createReceiverOnce();
+updateStationUI();
+updateMediaSession();
+setConnection("Ready to stream", "");
+startMeter((level) => {
+    const bars = uiWave.children;
+    const count = bars.length;
+
+    for (let i = 0; i < count; i++) {
+        const center = Math.abs((i / (count - 1)) * 2 - 1);
+        const falloff = 1 - center * 0.55;
+        const variation = 0.72 + Math.random() * 0.28;
+        const h = Math.max(
+            7,
+            8 + level * 48 * falloff * variation
+        );
+        bars[i].style.height = `${h}px`;
+    }
+});
+
+/* Create the receiver immediately, but do not play until the user unlocks audio. */
+showPermission();
+
+window.GenericReceiver = {
+    start: startRadio,
+    pause: pauseRadio,
+    receiver: () => receiver,
+    config: RECEIVER_CONFIG
+};
+</script>
+</body>
+</html>
